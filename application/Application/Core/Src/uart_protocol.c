@@ -37,6 +37,7 @@ static HAL_StatusTypeDef erase_staging_region(uint32_t size);
 static HAL_StatusTypeDef staging_write(uint32_t offset, const uint8_t *data, uint16_t len);
 static void send_ack(void);
 static void send_nack(void);
+static void handle_apply_update(const uart_packet_t *pkt);
 
 /* =================== Public API =================== */
 
@@ -116,8 +117,14 @@ void main_loop_process_uart(void)
         uint32_t computed_crc = crc32_zlib_compatible(rx_packet.payload, rx_packet.length);
 
         if (computed_crc == rx_packet.crc32) {
+            uint8_t cmd = rx_packet.cmd;   /* save before handle_packet, packet buffer may be reused */
             handle_packet(&rx_packet);
             send_ack();
+
+            if (cmd == CMD_APPLY_UPDATE) {
+                HAL_Delay(50);   /* let UART TX finish flushing before reset */
+                NVIC_SystemReset();
+            }
         } else {
             send_nack();
         }
@@ -139,6 +146,9 @@ static void handle_packet(const uart_packet_t *pkt)
         break;
     case CMD_END_UPDATE:
         handle_end_update(pkt);
+        break;
+    case CMD_APPLY_UPDATE:
+        handle_apply_update(pkt);
         break;
     default:
         break;
@@ -216,6 +226,24 @@ static void handle_end_update(const uart_packet_t *pkt)
     }
 
     update_state = UPDATE_IDLE;
+}
+
+static void handle_apply_update(const uart_packet_t *pkt)
+{
+    (void)pkt;
+
+    boot_metadata_t meta;
+    metadata_read(&meta);
+
+    if (meta.staging_valid == 0) {
+        return;   /* nothing staged - ACK still gets sent by caller, but no action taken */
+    }
+
+    meta.apply_requested = 1;
+    metadata_write(&meta);
+
+    /* ACK is sent by the caller (main_loop_process_uart) right after this
+       returns, so the host sees confirmation before the device resets */
 }
 
 /* =================== Staging flash access =================== */

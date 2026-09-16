@@ -47,7 +47,8 @@
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
+static uint32_t last_status_print_tick = 0;
+#define STATUS_PRINT_INTERVAL_MS   5000   /* print every 5 seconds */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,7 +56,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void check_and_print_update_status(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -119,8 +120,8 @@ int main(void)
   {
     /* USER CODE END WHILE */
 	  printf("APP Running\r\n");
-	  HAL_Delay(100);
 	  main_loop_process_uart();
+	  check_and_print_update_status();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -225,7 +226,21 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void check_and_print_update_status(void)
+{
+    if ((HAL_GetTick() - last_status_print_tick) < STATUS_PRINT_INTERVAL_MS) {
+        return;
+    }
+    last_status_print_tick = HAL_GetTick();
 
+    boot_metadata_t meta;
+    metadata_read(&meta);
+
+    if (meta.staging_valid) {
+        printf("Update available (size: %lu bytes). Send APPLY_UPDATE to install.\r\n",
+               (unsigned long)meta.staging_size);
+    }
+}
 /* USER CODE END 4 */
 
 /**

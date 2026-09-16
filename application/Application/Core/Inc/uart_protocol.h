@@ -16,7 +16,7 @@
 
 /* ---- Protocol constants ---- */
 #define UART_START_BYTE     0xAA
-
+#define CMD_APPLY_UPDATE    0x06
 #define CMD_START_UPDATE    0x01
 #define CMD_WRITE_CHUNK     0x02
 #define CMD_END_UPDATE      0x03
