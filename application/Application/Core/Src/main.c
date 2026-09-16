@@ -20,8 +20,12 @@
 #include "main.h"
 #include <stdio.h>
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
 
+
+/* USER CODE BEGIN Includes */
+#include "crc_util.h"
+#include "metadata.h"
+#include "uart_protocol.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,6 +102,15 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   printf("APP Start");
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  /* ...any other MX_*_Init() calls CubeIDE generated... */
+
+  /* USER CODE BEGIN 2 */
+  CRC_Init_Zlib_Compatible();
+  metadata_init_if_needed();
+  uart_protocol_init(&huart2);
+  /* USER CODE END 2 */
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -107,6 +120,7 @@ int main(void)
     /* USER CODE END WHILE */
 	  printf("APP Running\r\n");
 	  HAL_Delay(100);
+	  main_loop_process_uart();
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

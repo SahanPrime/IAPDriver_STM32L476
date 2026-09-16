@@ -41,7 +41,7 @@
 /*#define HAL_CAN_MODULE_ENABLED   */
 /*#define HAL_COMP_MODULE_ENABLED   */
 /*#define HAL_I2C_MODULE_ENABLED   */
-/*#define HAL_CRC_MODULE_ENABLED   */
+#define HAL_CRC_MODULE_ENABLED
 /*#define HAL_CRYP_MODULE_ENABLED   */
 /*#define HAL_DAC_MODULE_ENABLED   */
 /*#define HAL_DCMI_MODULE_ENABLED   */
@@ -291,7 +291,7 @@
 #endif /* HAL_COMP_MODULE_ENABLED */
 
 #ifdef HAL_CRC_MODULE_ENABLED
-  #include "stm32l4xx_hal_crc.h"
+  #include <stm32l4xx_hal_crc.h>
 #endif /* HAL_CRC_MODULE_ENABLED */
 
 #ifdef HAL_CRYP_MODULE_ENABLED
