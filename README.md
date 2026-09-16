@@ -1,10 +1,10 @@
 # UART Bootloader — STM32L476RG
 
-A compact, UART-based two-stage bootloader for the STM32L476RG (NUCLEO-L476RG). This project demonstrates low-level embedded systems techniques including manual flash programming, linker-script memory layout, vector table relocation, and a small, robust UART firmware update protocol.
+A compact, UART-based two-stage bootloader for the STM32L476RG (NUCLEO-L476RG). This project demonstrates low-level embedded systems techniques including manual flash programming, linker-script memory layout, and safe firmware update mechanisms.
 
 ## Status
 
-Active development — basic bootloader-to-application jump is implemented (v0.1). UART update protocol and host tooling are in progress. See `docs/` for design notes and detailed specifications.
+Active development — basic bootloader-to-application jump is implemented (v0.1). UART update protocol and host tooling are in progress. See [`docs/`](docs/) for design notes and detailed specifications.
 
 ## Key Concepts
 
@@ -26,16 +26,12 @@ Active development — basic bootloader-to-application jump is implemented (v0.1
 
 ## Memory map & protocol
 
-See `docs/memory-map.md` for the flash and SRAM layout and the rationale for the bootloader/app split. See `docs/protocol-spec.md` for the UART packet format and command set (working draft).
+See [`docs/memory-map.md`](docs/memory-map.md) for the flash and SRAM layout and the rationale for the bootloader/app split. See [`docs/protocol-spec.md`](docs/protocol-spec.md) for the UART packet format and command set (working draft).
 
 ## Building & flashing
 
-Toolchain and build instructions will be documented here once the project stabilizes. Typical steps will include installing an ARM GCC toolchain, invoking the provided Makefile/CMake configuration, and using either ST-Link or the host tool to program the device.
+Toolchain and build instructions will be documented here once the project stabilizes. Typical steps will include installing an ARM GCC toolchain, invoking the provided Makefile/CMake configuration, and using OpenOCD or similar tools to flash the bootloader image.
 
 ## Contributing
 
 Contributions, issues, and suggestions are welcome. Please open an issue or submit a pull request with proposed changes.
-
-## License
-
-TBD — add a license file when a license choice is finalized.
