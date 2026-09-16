@@ -1,10 +1,10 @@
 # UART Bootloader — STM32L476RG
 
-A compact, UART-based two-stage bootloader for the STM32L476RG (NUCLEO-L476RG). This project demonstrates low-level embedded systems techniques including manual flash programming, linker-script memory layout, and safe firmware update mechanisms.
+A compact, UART-based two-stage bootloader for the STM32L476RG (NUCLEO-L476RG). This project demonstrates low-level embedded systems techniques including manual flash programming, linker-script memory management, vector table relocation, and a custom UART packet protocol.
 
 ## Status
 
-Active development — basic bootloader-to-application jump is implemented (v0.1). UART update protocol and host tooling are in progress. See [`docs/`](docs/) for design notes and detailed specifications.
+**v0.1 released** — bootloader-to-application jump is working and verified on hardware. UART firmware-update protocol and host tooling are in progress (v0.2). See [`docs/v0.1-release-notes.md`](docs/v0.1-release-notes.md) for this milestone's details, and [`docs/`](docs/) for design specs.
 
 ## Key Concepts
 
@@ -13,24 +13,26 @@ Active development — basic bootloader-to-application jump is implemented (v0.1
 - Vector table relocation: application vector table is relocated when control is transferred so interrupts are handled correctly by the running image.
 - Simple, extensible UART protocol: framed packets with CRC and command set for erase, write, verify, and jump.
 
-## Repository layout
+## Repository Layout
 
-- bootloader/      — Bootloader firmware (runs first). Handles receiving updates over UART, writing to flash, and jumping to the application.
-- application/     — Example application built to run at the application flash offset. Used to validate the bootloader's jump behavior and demonstrate application updates.
-- host-tool/       — Host-side Python utility to send firmware images over UART using the custom protocol.
-- docs/            — Design notes, memory map, and protocol specification. Reference for development decisions and protocol details.
-- tools/           — Build helpers, scripts, or utilities used during development (CI, flashing helpers, etc.).
-- examples/        — Example firmware images or test payloads for exercising the bootloader.
+- `bootloader/`     — Bootloader firmware (runs first). Handles receiving updates over UART, writing to flash, and jumping to the application.
+- `application/`    — Example application built to run at the application flash offset. Used to validate the bootloader's jump behavior and demonstrate application updates.
+- `host-tool/`      — Host-side Python utility to send firmware images over UART using the custom protocol.
+- `docs/`           — Design notes, memory map, protocol specification, and release notes.
+- `tools/`          — Build helpers, scripts, or utilities used during development (CI, flashing helpers, etc.).
+- `examples/`       — Example firmware images or test payloads for exercising the bootloader.
 
-(If any of the above folders are not present yet, they reflect intended structure and will be committed as they are added.)
+(If any of the above folders are not yet present, they reflect intended structure and will be committed as they are added.)
 
-## Memory map & protocol
+## Documentation
 
-See [`docs/memory-map.md`](docs/memory-map.md) for the flash and SRAM layout and the rationale for the bootloader/app split. See [`docs/protocol-spec.md`](docs/protocol-spec.md) for the UART packet format and command set (working draft).
+- **[v0.1 Release Notes](docs/v0.1-release-notes.md)** — Overview of the bootloader-to-application jump, hardware setup, and debugging notes from this milestone.
+- **[Memory Map](docs/memory-map.md)** — Flash and SRAM layout, rationale for the bootloader/app split, and vector table relocation strategy.
+- **[Protocol Spec](docs/protocol-spec.md)** — UART packet format, command set, and error handling (in progress for v0.2).
 
-## Building & flashing
+## Building & Flashing
 
-Toolchain and build instructions will be documented here once the project stabilizes. Typical steps will include installing an ARM GCC toolchain, invoking the provided Makefile/CMake configuration, and using OpenOCD or similar tools to flash the bootloader image.
+Toolchain and build instructions will be documented here once the project stabilizes. Typical steps will include installing an ARM GCC toolchain, invoking the provided Makefile/CMake configuration, and using ST-Link for flashing and debugging.
 
 ## Contributing
 
