@@ -22,6 +22,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include "flash_map.h"
+#include "metadata.h"
+#include "crc_util.h"
+#include "iap_apply.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -122,7 +126,11 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  printf("IAP Demo Boot\r\n");
+  	printf("IAP Demo Boot\r\n");
+    CRC_Init_Zlib_Compatible();
+    metadata_init_if_needed();
+    iap_check_and_apply_update();   /* checks apply_requested, copies Staging->Active if needed */
+
 
   /* USER CODE END 2 */
 

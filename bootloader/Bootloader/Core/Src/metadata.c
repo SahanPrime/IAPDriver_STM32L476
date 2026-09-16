@@ -37,7 +37,6 @@ HAL_StatusTypeDef metadata_write(const boot_metadata_t *meta)
         HAL_FLASH_Lock();
         return status;
     }
-
     /* write struct as double-words (8 bytes at a time) */
     const uint64_t *src = (const uint64_t *)meta;
     uint32_t addr = METADATA_ADDR;
@@ -55,7 +54,7 @@ HAL_StatusTypeDef metadata_write(const boot_metadata_t *meta)
     return status;
 }
 
-    void metadata_init_if_needed(void)
+void metadata_init_if_needed(void)
     {
         boot_metadata_t meta;
 

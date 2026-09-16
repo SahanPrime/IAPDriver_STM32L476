@@ -10,9 +10,10 @@
 
 #include <stdint.h>
 #include "flash_map.h"
+#include "stm32l4xx_hal.h"
 
 #define METADATA_MAGIC 0xDEADBEEFUL
-
+#define METADATA_PAGE 496U
 void metadata_init_if_needed(void);
 
 typedef struct{

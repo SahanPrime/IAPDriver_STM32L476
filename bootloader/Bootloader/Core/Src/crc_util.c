@@ -7,6 +7,7 @@
 
 
 #include "crc_util.h"
+#include "main.h"
 
 static CRC_HandleTypeDef hcrc;
 
