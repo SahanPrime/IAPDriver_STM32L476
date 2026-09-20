@@ -1,0 +1,2 @@
+main_loop_process_uart();
+check_and_print_update_status();

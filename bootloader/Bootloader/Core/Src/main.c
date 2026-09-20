@@ -75,8 +75,18 @@ void go2APP(void)
 			JumpAddress=*(__IO uint32_t*)(FLASH_APP_ADDR+4);
 			Jump_To_Application=(pFunction)JumpAddress;
 			//Initialize user application's stack pointer//
+			__disable_irq();
+			SysTick->CTRL = 0;
+			SysTick->VAL = 0;
+			HAL_UART_DeInit(&huart2);          // <-- add here: matches your bootloader's UART handle name
+			for (uint8_t i = 0; i < 8; i++) {   // <-- add here: clear all NVIC enable + pending state
+			            NVIC->ICER[i] = 0xFFFFFFFF;
+			            NVIC->ICPR[i] = 0xFFFFFFFF;
+			        }
 			__set_MSP(*(__IO uint32_t*)FLASH_APP_ADDR);
+			__enable_irq();
 			Jump_To_Application();
+
 		}
 		else{
 			printf("No APP found !!!\r\n");

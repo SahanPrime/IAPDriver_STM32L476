@@ -30,7 +30,7 @@ HAL_StatusTypeDef metadata_write(const boot_metadata_t *meta)
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
     erase_init.Banks     = FLASH_BANK_1;
     erase_init.Page      = METADATA_PAGE;
-    erase_init.NbPages   = 1;
+    erase_init.NbPages   = 16;
 
     status = HAL_FLASHEx_Erase(&erase_init, &page_error);
     if (status != HAL_OK) {

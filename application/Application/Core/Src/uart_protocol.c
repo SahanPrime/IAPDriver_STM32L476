@@ -9,18 +9,19 @@
 #include "metadata.h"
 #include "crc_util.h"
 #include <string.h>
+#include <stdio.h>
 
 /* ---- UART handle ---- */
 static UART_HandleTypeDef *s_huart = NULL;
 static uint8_t rx_byte;
 
 /* ---- Packet parser state ---- */
-static rx_state_t    rx_state = RX_WAIT_START;
+static volatile rx_state_t    rx_state = RX_WAIT_START;
 static uart_packet_t rx_packet;
 static uint16_t      rx_payload_idx = 0;
 static uint8_t       rx_crc_bytes[4];
 static uint8_t       rx_crc_idx = 0;
-static uint32_t      rx_last_byte_tick = 0;
+static volatile uint32_t      rx_last_byte_tick = 0;
 
 /* ---- Update transfer state ---- */
 static update_state_t update_state = UPDATE_IDLE;
@@ -49,6 +50,7 @@ void uart_protocol_init(UART_HandleTypeDef *huart)
 
 void uart_rx_byte_handler(uint8_t byte)
 {
+	//printf("RX byte: 0x%02X\r\n", byte);   /* TEMPORARY debug line */
     rx_last_byte_tick = HAL_GetTick();
 
     switch (rx_state) {
@@ -115,6 +117,7 @@ void main_loop_process_uart(void)
 
     if (rx_state == RX_PACKET_READY) {
         uint32_t computed_crc = crc32_zlib_compatible(rx_packet.payload, rx_packet.length);
+        printf("Computed: 0x%08lX  Received: 0x%08lX\r\n", (unsigned long)computed_crc, (unsigned long)rx_packet.crc32);
 
         if (computed_crc == rx_packet.crc32) {
             uint8_t cmd = rx_packet.cmd;   /* save before handle_packet, packet buffer may be reused */

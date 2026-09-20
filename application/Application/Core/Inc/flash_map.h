@@ -22,6 +22,6 @@
 
 /*metadata sector */
 #define METADATA_ADDR 0x080F8000UL
-#define METADATA_SIZE (32*1024 UL)
+#define METADATA_SIZE (32*1024UL)
 
 #endif /* INC_FLASH_MAP_H_ */
