@@ -28,7 +28,7 @@ HAL_StatusTypeDef metadata_write(const boot_metadata_t *meta)
 
     /* erase the metadata page first - STM32L4 requires erase before write */
     erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
-    erase_init.Banks     = FLASH_BANK_1;
+    erase_init.Banks     = FLASH_BANK_2;
     erase_init.Page      = METADATA_PAGE;
     erase_init.NbPages   = 1;
 

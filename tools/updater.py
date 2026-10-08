@@ -2,8 +2,8 @@
 """
 Firmware updater for stm32l476-iap-driver.
 Usage:
-    python updater.py send <port> <baud> <firmware.bin>   - stage a new firmware
-    python updater.py apply <port> <baud>                  - trigger install + reset
+    python updater.py send <port> <baud> <firmware.bin>   - send, verify, and automatically install firmware
+    python updater.py apply <port> <baud>                  - install a previously staged image
 """
 
 import serial
@@ -32,9 +32,13 @@ def build_packet(cmd: int, payload: bytes) -> bytes:
 
 
 def read_full_packet(ser: serial.Serial):
-    start = ser.read(1)
-    if len(start) != 1 or start[0] != START_BYTE:
-        return None
+    while True:
+        start = ser.read(1)
+        if len(start) != 1:
+            return None
+        if start[0] == START_BYTE:
+            break
+
     header = ser.read(3)
     if len(header) != 3:
         return None
@@ -112,7 +116,7 @@ def send_firmware(port: str, baud: int, bin_path: str):
             print("FAILED: END_UPDATE rejected (CRC mismatch or incomplete)")
             sys.exit(1)
 
-        print("Update staged successfully. Run 'apply' to install it.")
+        print("Image CRC verified. Device is rebooting to install the update.")
 
 
 def send_apply_command(port: str, baud: int):

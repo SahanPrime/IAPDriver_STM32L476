@@ -83,6 +83,10 @@ void go2APP(void)
 			            NVIC->ICER[i] = 0xFFFFFFFF;
 			            NVIC->ICPR[i] = 0xFFFFFFFF;
 			        }
+      SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
+      SCB->VTOR = FLASH_APP_ADDR;
+      __DSB();
+      __ISB();
 			__set_MSP(*(__IO uint32_t*)FLASH_APP_ADDR);
 			__enable_irq();
 			Jump_To_Application();

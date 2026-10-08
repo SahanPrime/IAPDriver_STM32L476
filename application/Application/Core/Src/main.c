@@ -24,7 +24,6 @@
 #include "crc_util.h"
 #include "metadata.h"
 #include "uart_protocol.h"
-#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,32 +46,11 @@ CRC_HandleTypeDef hcrc;
 
 UART_HandleTypeDef huart2;
 
-/* USER CODE BEGIN PV */
-static uint32_t last_status_print_tick = 0;
-#define STATUS_PRINT_INTERVAL_MS   5000   /* print every 5 seconds */
-/* USER CODE END PV */
-
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_CRC_Init(void);
-/* USER CODE BEGIN PFP */
-static void check_and_print_update_status(void);
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-int _write (int file,char *ptr,int len)
-	{
-		int DataIdx;
-		for(DataIdx=0;DataIdx<len;DataIdx++)
-		{
-			HAL_UART_Transmit(&huart2,(uint8_t*)ptr++,1,100);
-		}
-		return len;
-	}
-/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
@@ -105,7 +83,6 @@ int main(void)
   MX_USART2_UART_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
-  printf("APP Start");
   /* ...any other MX_*_Init() calls CubeIDE generated... */
 
   /* USER CODE BEGIN 2 */
@@ -120,6 +97,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
 	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+	  main_loop_process_uart();
 	  HAL_Delay(500);
     /* USER CODE BEGIN 3 */
   }
@@ -148,7 +126,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
+  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_8;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -266,26 +244,6 @@ static void MX_GPIO_Init(void)
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
-
-/* USER CODE BEGIN 4 */
-static void check_and_print_update_status(void)
-{
-    if ((HAL_GetTick() - last_status_print_tick) < STATUS_PRINT_INTERVAL_MS) {
-        return;
-    }
-    last_status_print_tick = HAL_GetTick();
-
-    boot_metadata_t meta;
-    metadata_read(&meta);
-
-    if (meta.staging_valid) {
-        printf("Update available (size: %lu bytes). Send APPLY_UPDATE to install.\r\n",
-               (unsigned long)meta.staging_size);
-    }
-}
-
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.

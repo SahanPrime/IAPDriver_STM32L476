@@ -13,7 +13,7 @@
 #include "stm32l4xx_hal.h"
 
 #define METADATA_MAGIC 0xDEADBEEFUL
-#define METADATA_PAGE 496U
+#define METADATA_PAGE ((METADATA_ADDR - FLASH_BASE - FLASH_BANK_SIZE) / FLASH_PAGE_SIZE)
 void metadata_init_if_needed(void);
 
 typedef struct{
