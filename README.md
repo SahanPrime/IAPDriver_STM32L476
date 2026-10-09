@@ -1,6 +1,6 @@
 # UART Bootloader for STM32L476RG
 
-This repository contains a UART-based bootloader for the STM32L476RG (NUCLEO-L476RG). It demonstrates manual flash programming, linker script memory layout control, vector-table relocation, and a custom firmware update protocol for in-system application updates.
+This repository contains a UART-based bootloader for the STM32L476RG (NUCLEO-L476RG). It demonstrates manual flash programming, linker script memory layout control, vector-table relocation, and a custom UART packet protocol for in-system firmware updates.
 
 ## What is in this repo
 
@@ -12,7 +12,7 @@ This repository contains a UART-based bootloader for the STM32L476RG (NUCLEO-L47
 
 ## Why we need a bootloader
 
-A bootloader is needed when a microcontroller must be updated without removing the chip or using a separate external programmer every time. In embedded systems, firmware often needs to be patched, upgraded, or recovered in the field after deployment.
+A bootloader is needed when a microcontroller must be updated without removing the chip or using a separate external programmer every time. In embedded systems, firmware often needs to be patched, improved, or recovered while the device remains in the field.
 
 This project solves that problem by letting the STM32 device:
 
@@ -22,9 +22,9 @@ This project solves that problem by letting the STM32 device:
 - verify the update;
 - jump to the new application image.
 
-Without a bootloader, updating firmware usually means physically disconnecting the board, using a debugger/programmer, and re-flashing the device manually. That is time-consuming, expensive, and impossible in many deployed or remote applications.
+Without a bootloader, updating firmware usually means physically disconnecting the board, using a debugger/programmer, and re-flashing the device manually. That is time-consuming, expensive, and error-prone.
 
-A bootloader is also essential for recovery. If a new firmware image is corrupted or a bug is introduced, the bootloader can provide a way to reprogram the device instead of leaving the product bricked.
+A bootloader is also essential for recovery. If a new firmware image is corrupted or a bug is introduced, the bootloader can provide a way to reprogram the device instead of leaving the product unusable.
 
 ## Problems this project solves
 
@@ -72,6 +72,10 @@ In other words, the project shows how a real embedded device can be upgraded in 
 - [Hardware and Firmware Guide](docs/hardware-and-firmware-guide.md)
 - [UART Update Troubleshooting](docs/update-troubleshooting.md)
 
+## Additional Resources
+
+- [Google Drive project folder](https://drive.google.com/drive/folders/1akgJiHbSGZ59kSEOzWD5OKZcl4NaesUT?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto)
+
 ## Build and flash
 
 This repository is structured as STM32CubeIDE projects. Open the project folders in STM32CubeIDE or use the generated STM32 toolchain configuration to build and flash the firmware.
@@ -83,7 +87,7 @@ The bootloader and application are intentionally built for different flash regio
 
 ## UART application update
 
-Build the bootloader and program `bootloader/Bootloader/Debug/Bootloader.bin` using ST-LINK at address `0x08000000`. The application update receiver listens on USART2 at 115200 baud. It stages and validates incoming firmware before writing it to flash and jumping into the application.
+Build the bootloader and program `bootloader/Bootloader/Debug/Bootloader.bin` using ST-LINK at address `0x08000000`. The application update receiver listens on USART2 at 115200 baud. It stages and validates new firmware updates before handing execution to the application image.
 
 Install the host dependency with `python -m pip install pyserial`, then run:
 
@@ -91,8 +95,8 @@ Install the host dependency with `python -m pip install pyserial`, then run:
 python tools/updater.py send COM3 115200 application/Application/Debug/Application.bin
 ```
 
-Replace `COM3` with the board's serial port and the final argument with the `.bin` to install. Run the command while the application is running. The same command installs an older `.bin` for rollback testing if necessary.
+Replace `COM3` with the board's serial port and the final argument with the `.bin` to install. Run the command while the application is running. The same command installs an older `.bin` for rollback or testing.
 
 ## Notes
 
-This project is centered on low-level embedded programming and firmware update mechanisms. It does not include a separate CI pipeline, package system, or additional application framework beyond the bootloader/application update flow itself.
+This project is centered on low-level embedded programming and firmware update mechanisms. It does not include a separate CI pipeline, package system, or additional application framework beyond the bootloader and firmware update flow itself.
