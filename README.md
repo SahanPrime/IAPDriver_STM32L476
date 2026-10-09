@@ -10,9 +10,7 @@ This repository contains a UART-based bootloader for the STM32L476RG (NUCLEO-L47
 - `tools/` — Python utilities for debug and update operations.
 - `docs/` — project documentation, memory layout notes, and release notes.
 
-## Current status
 
-The bootloader can validate an application image and jump into it from a separate flash region. The project is focused on the embedded bootloader/update workflow and the supporting documentation.
 
 ## Hardware
 
