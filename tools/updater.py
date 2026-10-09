@@ -21,6 +21,7 @@ CMD_NACK         = 0x05
 CMD_APPLY_UPDATE = 0x06
 
 CHUNK_SIZE  = 256
+MAX_IMAGE_SIZE = 480 * 1024
 ACK_TIMEOUT = 2.0
 MAX_RETRIES = 5
 
@@ -83,9 +84,13 @@ def send_firmware(port: str, baud: int, bin_path: str):
         firmware = f.read()
 
     real_size = len(firmware)
+    if not 8 <= real_size <= MAX_IMAGE_SIZE:
+        print(f"FAILED: image must be between 8 and {MAX_IMAGE_SIZE} bytes")
+        sys.exit(1)
     final_crc = zlib.crc32(firmware) & 0xFFFFFFFF
 
     print(f"Firmware: {bin_path}  ({real_size} bytes, CRC32 0x{final_crc:08X})")
+    print("Keep the application running during transfer; the bootloader applies the image after CRC validation.")
 
     with serial.Serial(port, baud, timeout=ACK_TIMEOUT) as ser:
         time.sleep(0.5)

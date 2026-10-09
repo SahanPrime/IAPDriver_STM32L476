@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <string.h>
 #include "flash_map.h"
 #include "metadata.h"
 #include "crc_util.h"
@@ -32,6 +33,17 @@
 /* USER CODE BEGIN PTD */
 typedef void(*pFunction)(void);
 #define FLASH_APP_ADDR 0x08008000
+#define UART_START_BYTE 0xAAU
+#define UART_CMD_START_UPDATE 0x01U
+#define UART_CMD_WRITE_CHUNK 0x02U
+#define UART_CMD_END_UPDATE 0x03U
+#define UART_CMD_ACK 0x04U
+#define UART_CMD_NACK 0x05U
+#define UART_CMD_APPLY_UPDATE 0x06U
+#define UART_UPDATE_WINDOW_MS 5000U
+#define UART_PACKET_TIMEOUT_MS 2000U
+#define UART_CHUNK_SIZE 256U
+#define UART_MAX_PAYLOAD (UART_CHUNK_SIZE + 4U)
 void go2APP(void);
 /* USER CODE END PTD */
 
@@ -108,6 +120,222 @@ int _write(int file,char *ptr,int len)
 }
 	return len;
 }
+
+static uint32_t read_u32_be(const uint8_t *data)
+{
+  return ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
+         ((uint32_t)data[2] << 8) | data[3];
+}
+
+static void uart_send_response(uint8_t command)
+{
+  uint8_t packet[8] = {UART_START_BYTE, command, 0, 0, 0, 0, 0, 0};
+  HAL_UART_Transmit(&huart2, packet, sizeof(packet), HAL_MAX_DELAY);
+}
+
+static int uart_receive_packet(uint8_t *command, uint8_t *payload,
+    uint16_t *payload_length, uint32_t first_byte_timeout_ms)
+{
+  uint8_t start_byte;
+  uint8_t header[3];
+  uint8_t crc_bytes[4];
+  uint32_t started = HAL_GetTick();
+
+  while ((HAL_GetTick() - started) < first_byte_timeout_ms) {
+    uint32_t remaining = first_byte_timeout_ms - (HAL_GetTick() - started);
+    if (HAL_UART_Receive(&huart2, &start_byte, 1, remaining) != HAL_OK) {
+      return 0;
+    }
+    if (start_byte == UART_START_BYTE) {
+      break;
+    }
+  }
+  if (start_byte != UART_START_BYTE) {
+    return 0;
+  }
+
+  if (HAL_UART_Receive(&huart2, header, sizeof(header), UART_PACKET_TIMEOUT_MS) != HAL_OK) {
+    return -1;
+  }
+  *command = header[0];
+  *payload_length = ((uint16_t)header[1] << 8) | header[2];
+  if (*payload_length > UART_MAX_PAYLOAD) {
+    return -1;
+  }
+  if (*payload_length > 0 &&
+      HAL_UART_Receive(&huart2, payload, *payload_length, UART_PACKET_TIMEOUT_MS) != HAL_OK) {
+    return -1;
+  }
+  if (HAL_UART_Receive(&huart2, crc_bytes, sizeof(crc_bytes), UART_PACKET_TIMEOUT_MS) != HAL_OK) {
+    return -1;
+  }
+
+  uint32_t received_crc = read_u32_be(crc_bytes);
+  uint32_t calculated_crc = *payload_length ?
+    crc32_zlib_compatible(payload, *payload_length) : 0U;
+  return received_crc == calculated_crc ? 1 : -1;
+}
+
+static HAL_StatusTypeDef erase_staging_region(uint32_t image_size)
+{
+  FLASH_EraseInitTypeDef erase_init = {0};
+  uint32_t page_error = 0;
+  uint32_t first_page = (STAGING_ADDR - FLASH_BASE - FLASH_BANK_SIZE) / FLASH_PAGE_SIZE;
+  uint32_t page_count = (image_size + FLASH_PAGE_SIZE - 1U) / FLASH_PAGE_SIZE;
+
+  HAL_FLASH_Unlock();
+  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+  erase_init.TypeErase = FLASH_TYPEERASE_PAGES;
+  erase_init.Banks = FLASH_BANK_2;
+  erase_init.Page = first_page;
+  erase_init.NbPages = page_count;
+  HAL_StatusTypeDef status = HAL_FLASHEx_Erase(&erase_init, &page_error);
+  HAL_FLASH_Lock();
+  return status;
+}
+
+static HAL_StatusTypeDef write_staging_chunk(uint32_t offset,
+    const uint8_t *data, uint16_t length)
+{
+  HAL_StatusTypeDef status = HAL_OK;
+  HAL_FLASH_Unlock();
+  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+
+  for (uint16_t index = 0; index < length; index += 8U) {
+    uint64_t double_word;
+    memcpy(&double_word, &data[index], sizeof(double_word));
+    status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD,
+        STAGING_ADDR + offset + index, double_word);
+    if (status != HAL_OK) {
+      break;
+    }
+  }
+
+  HAL_FLASH_Lock();
+  return status;
+}
+
+static int staging_vector_table_is_valid(uint32_t image_size)
+{
+  const uint32_t *vectors = (const uint32_t *)STAGING_ADDR;
+  uint32_t stack_pointer = vectors[0];
+  uint32_t reset_handler = vectors[1] & ~1U;
+
+  return image_size >= 8U &&
+         stack_pointer >= 0x20000000UL && stack_pointer <= 0x20018000UL &&
+         reset_handler >= ACTIVE_APP_ADDR &&
+         reset_handler < ACTIVE_APP_ADDR + ACTIVE_APP_SIZE;
+}
+
+static void bootloader_uart_update(void)
+{
+  uint8_t payload[UART_MAX_PAYLOAD];
+  uint8_t command;
+  uint16_t payload_length;
+  uint32_t image_size = 0;
+  uint32_t expected_crc = 0;
+  uint32_t received_size = 0;
+  uint32_t started = HAL_GetTick();
+  int update_started = 0;
+
+  printf("UART update window: %u ms\r\n", UART_UPDATE_WINDOW_MS);
+  while (1) {
+    uint32_t timeout;
+    if (update_started) {
+      timeout = UART_PACKET_TIMEOUT_MS;
+    } else {
+      uint32_t elapsed = HAL_GetTick() - started;
+      if (elapsed >= UART_UPDATE_WINDOW_MS) {
+        return;
+      }
+      timeout = UART_UPDATE_WINDOW_MS - elapsed;
+    }
+
+    int packet_status = uart_receive_packet(&command, payload, &payload_length, timeout);
+    if (packet_status == 0) {
+      return;
+    }
+    if (packet_status < 0) {
+      uart_send_response(UART_CMD_NACK);
+      continue;
+    }
+
+    if (command == UART_CMD_START_UPDATE && payload_length == 8U) {
+      image_size = read_u32_be(payload);
+      expected_crc = read_u32_be(&payload[4]);
+      if (image_size < 8U || image_size > STAGING_SIZE ||
+          erase_staging_region(image_size) != HAL_OK) {
+        uart_send_response(UART_CMD_NACK);
+        continue;
+      }
+      received_size = 0;
+      update_started = 1;
+      uart_send_response(UART_CMD_ACK);
+      continue;
+    }
+
+    if (command == UART_CMD_WRITE_CHUNK && update_started && payload_length > 0U &&
+        payload_length <= UART_CHUNK_SIZE && received_size < image_size) {
+      uint32_t remaining = image_size - received_size;
+      uint16_t actual_length = remaining < UART_CHUNK_SIZE ?
+        (uint16_t)remaining : UART_CHUNK_SIZE;
+      uint16_t padded_length = (actual_length + 7U) & ~7U;
+
+      if (payload_length != padded_length ||
+          write_staging_chunk(received_size, payload, payload_length) != HAL_OK) {
+        uart_send_response(UART_CMD_NACK);
+        continue;
+      }
+
+      received_size += actual_length;
+      uart_send_response(UART_CMD_ACK);
+      continue;
+    }
+
+    if (command == UART_CMD_END_UPDATE && update_started && payload_length == 0U) {
+      uint32_t actual_crc = crc32_zlib_compatible(
+        (const uint8_t *)STAGING_ADDR, image_size);
+      if (received_size != image_size || actual_crc != expected_crc ||
+          !staging_vector_table_is_valid(image_size)) {
+        uart_send_response(UART_CMD_NACK);
+        continue;
+      }
+
+      boot_metadata_t metadata;
+      metadata_read(&metadata);
+      metadata.magic = METADATA_MAGIC;
+      metadata.staging_valid = 1U;
+      metadata.staging_size = image_size;
+      metadata.staging_crc = expected_crc;
+      metadata.apply_requested = 1U;
+      if (metadata_write(&metadata) != HAL_OK) {
+        uart_send_response(UART_CMD_NACK);
+        continue;
+      }
+      uart_send_response(UART_CMD_ACK);
+      NVIC_SystemReset();
+    }
+
+    if (command == UART_CMD_APPLY_UPDATE && payload_length == 0U) {
+      boot_metadata_t metadata;
+      metadata_read(&metadata);
+      if (metadata.magic != METADATA_MAGIC || metadata.staging_valid == 0U ||
+          metadata.staging_size < 8U || metadata.staging_size > STAGING_SIZE) {
+        uart_send_response(UART_CMD_NACK);
+        continue;
+      }
+      metadata.apply_requested = 1U;
+      if (metadata_write(&metadata) != HAL_OK) {
+        uart_send_response(UART_CMD_NACK);
+        continue;
+      }
+      uart_send_response(UART_CMD_ACK);
+      NVIC_SystemReset();
+    }
+
+    uart_send_response(UART_CMD_NACK);
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -144,6 +372,7 @@ int main(void)
     CRC_Init_Zlib_Compatible();
     metadata_init_if_needed();
     iap_check_and_apply_update();   /* checks apply_requested, copies Staging->Active if needed */
+    bootloader_uart_update();
 
 
   /* USER CODE END 2 */
