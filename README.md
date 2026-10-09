@@ -25,6 +25,7 @@ The bootloader can validate an application image and jump into it from a separat
 
 - [Memory Map](docs/memory-map.md)
 - [Design Notes](docs/design-notes.md)
+- [Hardware and Firmware Guide](docs/hardware-and-firmware-guide.md)
 - [UART Update Troubleshooting](docs/update-troubleshooting.md)
 
 ## Build and flash

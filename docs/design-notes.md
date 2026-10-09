@@ -38,7 +38,8 @@ The project splits flash into distinct regions:
 |--------|---------------|-------------|------|
 | Bootloader | `0x08000000` | `0x08007FFF` | 32 KB |
 | Active application | `0x08008000` | `0x0807FFFF` | 480 KB |
-| Staging region | `0x08080000` | `0x080FFFFF` | 480 KB |
+| Staging region | `0x08080000` | `0x080F7FFF` | 480 KB |
+| Metadata | `0x080F8000` | `0x080FFFFF` | 32 KB |
 
 This is reflected in the linker files:
 - bootloader linker script: `FLASH ORIGIN = 0x08000000`, `LENGTH = 32K`

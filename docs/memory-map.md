@@ -2,13 +2,17 @@
 
 ## Flash Layout
 
-| Region      | Start Address | End Address  | Size  |
-|-------------|---------------|--------------|-------|
-| Bootloader  | 0x08000000    | 0x08007FFF   | 32 KB |
-| Application | 0x08008000    | 0x080FFFFF   | 992 KB |
+| Region | Start Address | End Address | Size |
+|---|---:|---:|---:|
+| Bootloader | 0x08000000 | 0x08007FFF | 32 KB |
+| Active application | 0x08008000 | 0x0807FFFF | 480 KB |
+| Staging image | 0x08080000 | 0x080F7FFF | 480 KB |
+| Metadata area | 0x080F8000 | 0x080FFFFF | 32 KB |
 
 Total flash on the STM32L476RG: 1024 KB (1 MB), starting at `0x08000000`
-(the fixed flash base address for this chip, per RM0351).
+(the fixed flash base address for this chip, per RM0351). The four regions
+above sum to the full 1024 KB. The active/staging sizes and metadata location
+are defined in `bootloader/Bootloader/Core/Inc/flash_map.h`.
 
 ## Why this split, and why 32K
 
@@ -19,10 +23,11 @@ address ranges.
 **Why 32K for the bootloader specifically:**
 - Must be a multiple of the flash page size (2 KB on the STM32L4), since
   flash erase operations work on whole pages. 32 KB = 16 pages exactly.
-- Large enough to comfortably hold the bootloader's actual code: current
-  build size is ~4960 bytes (`.text` + `.data`) out of the 32K budget.
-- Small enough to leave the vast majority of flash (992 KB) available
-  for the application itself.
+- Large enough to hold the bootloader with room for update handling: the
+  current Debug build is about 23.3 KiB of `.text` + `.data` out of 32 KiB.
+- Leaves 992 KB after the bootloader for the active image, staging image,
+  and metadata. The current update design reserves 32 KB of that space for
+  metadata and divides the remaining 960 KB equally between active/staging.
 
 ## SRAM
 
@@ -40,10 +45,10 @@ When the bootloader jumps to the application, the CPU's `SCB->VTOR`
 register must be updated to point at the application's vector table
 (`0x08008000`) instead of the bootloader's (`0x08000000`).
 
-**Decision:** VTOR relocation is handled in the application's
-`system_stm32l4xx.c`, via `USER_VECT_TAB_ADDRESS` /
-`VECT_TAB_OFFSET = 0x8000`, rather than explicitly in the bootloader's
-jump function.
+**Implementation:** The bootloader sets `SCB->VTOR` to the active app address
+in `go2APP()`, and the application's `system_stm32l4xx.c` also sets
+`VECT_TAB_OFFSET = 0x8000` during system initialization. Both ensure
+exceptions use the application vector table at `0x08008000`.
 
 ## The Jump Sequence (`go2APP()`)
 
